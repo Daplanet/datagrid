@@ -20,6 +20,9 @@ To expand the cluster build the new boot2docker vm, join the swarm cluster, depl
 
   - Etherium Testnet with cubedro/eth-netstats as the ui
   - ipfs cluster
+  - Centralized Octoprint
+  - Support for Ros
+  - Support for jupyter notebooks and tensorflow
 
 ### 1.2.0
 

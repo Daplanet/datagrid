@@ -1,6 +1,7 @@
 ---
 version: "3.7"
 
+## DSL Config
 x-influxlog: &syslog
   logging:
     driver: syslog
@@ -48,20 +49,40 @@ x-restart: &on-failure
 x-stop-grace: &stopperiod
   stop_grace_period: 30s
 
-x-orbiter-disable: &orbiter-off
-  orbiter: "false"
-  traefik.enabled: "false"
-
-x-orbiter-enable: &orbiter-on
-  orbiter: "true"
-  orbiter.up: "3"
-  orbiter.down: "1"
-
 x-default-healthcheck: &heathcheck-pass
   test: ["CMD", "exit 0"]
   interval: 25s
   timeout: 5s
   retries: 3
+
+x-traefik-off: &traefik-off
+  traefik.enabled: "false"
+
+x-traefik-on: &traefik-on
+  traefik.enabled: "true"
+
+x-default-route: &default-route
+  <<: *traefik-on
+  traefik.frontend.rule: "HostRegexp:{catchall:.*}"
+  traefik.frontend.priority: "2"
+  traefik.frontned.entrypoints: 'http,https,ws,wss'
+  traefik.port: "80"
+
+x-vhost-route: &vhost-route
+  <<: *traefik-on
+  traefik.frontend.priority: 10
+  traefik.frontned.entrypoints: 'http,https,ws,wss'
+  traefik.port: "80"
+
+x-orbiter-disable: &orbiter-off
+  orbiter: "false"
+  <<: *traefik-off
+
+x-orbiter-enable: &orbiter-on
+  orbiter: "true"
+  orbiter.up: "3"
+  orbiter.down: "1"
+  <<: *traefik-on
 
 configs:
 
@@ -110,10 +131,11 @@ services:
       <<: *on-failure
       <<: *manager
       labels:
-        traefik.frontend.priority: 10
+        <<: *orbiter-on
+        <<: *virtual-host
         traefik.frontend.rule: "Host:influx.${DOMAINNAME}"
         traefik.frontend.port: "8086"
-        <<: *orbiter-on
+
 
   broker:
     image: matteocollina/mosca:latest
@@ -124,12 +146,11 @@ services:
       <<: *replicated
       <<: *on-failure
       labels:
-        traefik.port: "80"
-        traefik.frontend.priority: 10
-        traefik.default.protocol: "ws"
-        traefik.frontend.rule: "Host:broker.${DOMAINNAME}"
-        traefik.frontned.entrypoints: 'http,https,ws,wss'
         <<: *orbiter-on
+        <<: *virtual-host
+        traefik.port: "80"
+        traefik.frontend.rule: "Host:broker.${DOMAINNAME}"
+        traefik.frontned.entrypoints: 'ws,wss,http,https'
     volumes:
       - mqtt-data:/db
     networks:
@@ -214,10 +235,10 @@ services:
       <<: *global
       <<: *on-failure
       labels:
-        orbiter: "false"
+        <<: *orbiter-off
+        <<: *vhost-route
         traefik.port: "8000"
         traefik.frontend.rule: "Host:autoscale.${DOMAINNAME}"
-        traefik.frontend.priority: "10"
     ports:
       - '8000/tcp'
 
@@ -275,10 +296,10 @@ services:
       <<: *replicated
       <<: *on-failure
       labels:
+        <<: *vhost-route
+        <<: *orbiter-off
         traefik.port: "8080"
         traefik.frontend.rule: "Host:loadbalancer.${DOMAINNAME}"
-        traefik.frontend.priority: "10"
-        orbiter: "false"
     ports:
       - "80:80/tcp"
       - "443:443/tcp"
@@ -306,16 +327,20 @@ services:
     depends_on:
       - agent
       - telegraf
-    #command: -H "unix:///var/run/docker.sock" --no-auth
-    command: -H "tcp://tasks.adminagent:9001" --tlsskipverify --no-auth
+    command: |
+      -H "tcp://tasks.adminagent:9001"
+      --tlsskipverify
+      --no-auth
+      --no-analytics
+      --logo "https://dms-discourse-static.s3.amazonaws.com/original/3X/4/8/482ecb2309ea9a1892d570a6b4da6a77e84da941.png"
     deploy:
       <<: *replicated
       <<: *on-failure
       labels:
-        traefik.frontend.rule: "Host:admin.${DOMAINNAME}"
-        traefik.frontend.priority: "10"
-        traefik.port: "9000"
+        <<: *default-route
         <<: *orbiter-on
+        traefik.frontend.priority: 3
+        traefik.port: "9000"
 
   monitoring:
     image: chronograf:latest
@@ -323,10 +348,10 @@ services:
       <<: *replicated
       <<: *on-failure
       labels:
+        <<: *vhost-route
+        <<: *orbiter-on
         traefik.port: "8888"
         traefik.frontend.rule: "Host:monitoring.${DOMAINNAME}"
-        traefik.frontend.priority: "10"
-        <<: *orbiter-on
     ports:
       - '8888/tcp'
     volumes:
@@ -352,8 +377,8 @@ services:
       <<: *on-failure
       labels:
         <<: *orbiter-on
+        <<: *vhost-route
         traefik.frontend.rule: "Host:dashboard:${DOMAINNAME}"
-        traefik.frontend.priority: "10"
         traefik.port: 8123
 
 # TODO Include a status/incident page service
@@ -368,10 +393,23 @@ services:
       <<: *replicated
       <<: *on-failure
       labels:
-        traefik.frontend.rule: "HostRegexp:{catchall:.*}"
-        traefik.frontend.priority: "1"
-        traefik.port: "80"
         <<: *orbiter-on
+        <<: *default-route
+        traefik.port: "80"
 
+  systemprune:
+    deploy:
+      <<: *global
+      restart_policy:
+        condition: any
+        delay: 72h
+      <<: *on-failure
+      labels:
+        <<: *orbiter-off
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+      image: docker:dind
+      command: system prune -af
+      
 ...
 # vim: set sts=2 sw=2 ts=2 et ai:

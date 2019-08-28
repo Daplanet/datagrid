@@ -60,19 +60,23 @@ x-traefik-off: &traefik-off
 
 x-traefik-on: &traefik-on
   traefik.enabled: "true"
+  traefik.frontend.errors.network.backend: "error"                                                                                                                                                                     
+  traefik.frontend.errors.network.query: "/"                                                                                                                                                                             
+  traefik.frontend.errors.network.status: "404,500-511"
+  traefik.frontned.entrypoints: 'http,https,ws,wss'
+  traefik.frontend.priority: "5"
+  traefik.port: "80"
 
 x-default-route: &default-route
   <<: *traefik-on
+  <<: *traefik-default-frontend
   traefik.frontend.rule: "HostRegexp:{catchall:.*}"
-  traefik.frontend.priority: "2"
-  traefik.frontned.entrypoints: 'http,https,ws,wss'
-  traefik.port: "80"
+  traefik.frontend.priority: "1"
 
 x-vhost-route: &vhost-route
   <<: *traefik-on
-  traefik.frontend.priority: 10
-  traefik.frontned.entrypoints: 'http,https,ws,wss'
-  traefik.port: "80"
+  traefik.frontend.priority: "10"
+
 
 x-orbiter-disable: &orbiter-off
   orbiter: "false"
@@ -381,8 +385,6 @@ services:
         traefik.frontend.rule: "Host:dashboard:${DOMAINNAME}"
         traefik.port: 8123
 
-# TODO Include a status/incident page service
-
   errorpage:
     image: 'guillaumebriday/traefik-custom-error-pages:latest'
     ports:
@@ -395,7 +397,7 @@ services:
       labels:
         <<: *orbiter-on
         <<: *default-route
-        traefik.port: "80"
+        traefik.backend: "error"
 
   systemprune:
     deploy:

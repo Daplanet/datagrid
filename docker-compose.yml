@@ -154,7 +154,6 @@ services:
         <<: *virtual-host
         traefik.port: "80"
         traefik.frontend.rule: "Host:broker.${DOMAINNAME}"
-        traefik.frontned.entrypoints: 'ws,wss,http,https'
     volumes:
       - mqtt-data:/db
     networks:
@@ -279,9 +278,9 @@ services:
       --docker.network=${DEFAULT_NETWORK}
       --docker.exposedbydefault=true
       --logLevel=DEBUG
-      --entryPoints="Name:http Address::80" #Redirect.EntryPoint:https
+      --entryPoints="Name:http Address::80 Redirect.EntryPoint:https"
       --entryPoints="Name:https Address::443 TLS" #Redirect.EntryPoint:https
-      --defaultentrypoints=http,https,ws,wss
+      --defaultentrypoints="http,https,ws,wss"
       --api
       --api.entryPoint=traefik
       --api.dashboard=true

@@ -410,7 +410,7 @@ services:
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
       image: docker:dind
-      command: system prune -af
+      command: system prune -af --filter "until=24h" --filter="label!=net.matrix.application==infrastructure"
       
 ...
 # vim: set sts=2 sw=2 ts=2 et ai:

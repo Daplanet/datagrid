@@ -69,7 +69,6 @@ x-traefik-on: &traefik-on
 
 x-default-route: &default-route
   <<: *traefik-on
-  <<: *traefik-default-frontend
   traefik.frontend.rule: "HostRegexp:{catchall:.*}"
   traefik.frontend.priority: "1"
 
@@ -136,7 +135,7 @@ services:
       <<: *manager
       labels:
         <<: *orbiter-on
-        <<: *virtual-host
+        <<: *vhost-route
         traefik.frontend.rule: "Host:influx.${DOMAINNAME}"
         traefik.frontend.port: "8086"
 
@@ -151,7 +150,7 @@ services:
       <<: *on-failure
       labels:
         <<: *orbiter-on
-        <<: *virtual-host
+        <<: *vhost-route
         traefik.port: "80"
         traefik.frontend.rule: "Host:broker.${DOMAINNAME}"
     volumes:

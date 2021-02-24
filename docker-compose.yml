@@ -334,7 +334,7 @@ services:
       --tlsskipverify
       --no-auth
       --no-analytics
-      --logo "https://dms-discourse-static.s3.amazonaws.com/original/3X/4/8/482ecb2309ea9a1892d570a6b4da6a77e84da941.png"
+      --logo "https://avatars.githubusercontent.com/u/6168350?s=200&v=4"
     deploy:
       <<: *replicated
       <<: *on-failure
